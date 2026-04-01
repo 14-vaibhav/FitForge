@@ -1,32 +1,32 @@
 import { useState } from 'react';
 
 const BODY_PARTS = [
-  { id: 'chest',     label: 'Chest',     emoji: '💪' },
-  { id: 'back',      label: 'Back',      emoji: '🦍' },
+  { id: 'chest', label: 'Chest', emoji: '🙅‍♂️' },
+  { id: 'back', label: 'Back', emoji: '🦍' },
   { id: 'shoulders', label: 'Shoulders', emoji: '🏋️' },
-  { id: 'biceps',    label: 'Biceps',    emoji: '💪' },
-  { id: 'triceps',   label: 'Triceps',   emoji: '🔱' },
-  { id: 'legs',      label: 'Legs',      emoji: '🦵' },
-  { id: 'glutes',    label: 'Glutes',    emoji: '🍑' },
-  { id: 'core',      label: 'Core',      emoji: '⚡' },
-  { id: 'cardio',    label: 'Cardio',    emoji: '🏃' },
+  { id: 'biceps', label: 'Biceps', emoji: '💪' },
+  { id: 'triceps', label: 'Triceps', emoji: '🔱' },
+  { id: 'legs', label: 'Legs', emoji: '🦵' },
+  { id: 'glutes', label: 'Glutes', emoji: '🍑' },
+  { id: 'core', label: 'Core', emoji: '⚡' },
+  { id: 'cardio', label: 'Cardio', emoji: '🏃' },
   { id: 'full body', label: 'Full Body', emoji: '🌟' },
 ];
 
 const TIME_OPTIONS = [
-  { value: 30,  label: '30 min',   sublabel: 'Quick session' },
-  { value: 45,  label: '45 min',   sublabel: 'Focused burn' },
-  { value: 60,  label: '1 hr',     sublabel: 'Standard' },
-  { value: 90,  label: '1.5 hr',   sublabel: 'Thorough' },
-  { value: 120, label: '2 hr',     sublabel: 'Full session' },
-  { value: 150, label: '2.5 hr',   sublabel: 'Power session' },
-  { value: 180, label: '3 hr',     sublabel: 'Beast mode' },
+  { value: 30, label: '30 min', sublabel: 'Quick session' },
+  { value: 45, label: '45 min', sublabel: 'Focused burn' },
+  { value: 60, label: '1 hr', sublabel: 'Standard' },
+  { value: 90, label: '1.5 hr', sublabel: 'Thorough' },
+  { value: 120, label: '2 hr', sublabel: 'Full session' },
+  { value: 150, label: '2.5 hr', sublabel: 'Power session' },
+  { value: 180, label: '3 hr', sublabel: 'Beast mode' },
 ];
 
 export default function WorkoutSetup({ onSubmit, isLoading }) {
   const [selectedParts, setSelectedParts] = useState([]);
-  const [duration, setDuration]           = useState(60);
-  const [location, setLocation]           = useState('Gym');
+  const [duration, setDuration] = useState(60);
+  const [location, setLocation] = useState('Gym');
 
   const toggleBodyPart = (id) => {
     setSelectedParts(prev =>
@@ -161,8 +161,8 @@ export default function WorkoutSetup({ onSubmit, isLoading }) {
             <div className="section-label mb-4">03 — Location</div>
             <div className="flex gap-3">
               {[
-                { id: 'Home', emoji: '🏠', label: 'Home',    sub: 'Bodyweight & bands' },
-                { id: 'Gym',  emoji: '🏋️', label: 'Gym',     sub: 'Full equipment' },
+                { id: 'Home', emoji: '🏠', label: 'Home', sub: 'Bodyweight & bands' },
+                { id: 'Gym', emoji: '🏋️', label: 'Gym', sub: 'Full equipment' },
               ].map(loc => (
                 <button
                   key={loc.id}
