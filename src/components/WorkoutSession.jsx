@@ -1,5 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { buildYoutubeUrl } from '../services/gemini';
+import PreviousPerformanceCard from './PreviousPerformanceCard';
+import { useExerciseHistory } from '../hooks/useExerciseHistory';
+import { generateSuggestion, normalizeExerciseName } from '../utils/progression';
+import { saveExerciseLog } from '../utils/localHistory';
+import { saveExerciseHistory } from '../services/historyService';
+import { useAuth } from '../context/AuthContext';
 
 const BODY_PARTS_MAP = {
   chest: 'Chest', back: 'Back', shoulders: 'Shoulders',
@@ -51,8 +57,13 @@ function StatBox({ mono, label, value }) {
   );
 }
 
-function LogModal({ exercise, onSave, onCancel }) {
+function LogModal({ exercise, onSave, onCancel, lastLog, loadingHistory }) {
   const isCardio = exercise.category === 'Cardio' || exercise.sets === 'N/A';
+
+  const suggestion = useMemo(() => {
+    if (loadingHistory) return null;
+    return generateSuggestion(lastLog, { sets: exercise.sets, reps: exercise.reps });
+  }, [lastLog, exercise, loadingHistory]);
 
   const [form, setForm] = useState({
     setsCompleted: '', repsPerSet: '', weight: '',
@@ -81,6 +92,8 @@ function LogModal({ exercise, onSave, onCancel }) {
             ✕
           </button>
         </div>
+
+        <PreviousPerformanceCard suggestion={suggestion} loading={loadingHistory} />
 
         <div className="space-y-4">
           {isCardio ? (
@@ -197,11 +210,14 @@ function LogModal({ exercise, onSave, onCancel }) {
 }
 
 export default function WorkoutSession({ exercises, workoutConfig, onComplete, onReplaceExercise, isReplacing }) {
+  const { user } = useAuth();
   const [currentIndex, setCurrentIndex]     = useState(0);
   const [completedExercises, setCompletedExercises] = useState([]);
   const [showLogModal, setShowLogModal]     = useState(false);
 
   const currentExercise = exercises[currentIndex];
+  const { lastLog, loading: loadingHistory } = useExerciseHistory(currentExercise?.name);
+
   const progress  = Math.round((completedExercises.length / exercises.length) * 100);
   const remaining = exercises.length - completedExercises.length;
 
@@ -224,6 +240,29 @@ export default function WorkoutSession({ exercises, workoutConfig, onComplete, o
     };
     const updated = [...completedExercises, entry];
     setCompletedExercises(updated);
+    
+    const exerciseKey = normalizeExerciseName(currentExercise.name);
+
+    // 1. Save to localStorage immediately (instant reads, offline-safe)
+    saveExerciseLog(
+      currentExercise.name,
+      exerciseKey,
+      currentExercise.category,
+      entry.log,
+      { sets: currentExercise.sets, reps: currentExercise.reps }
+    );
+
+    // 2. Also sync to Firestore in background (cloud backup)
+    if (user && user.uid !== 'guest_user_123') {
+      saveExerciseHistory(user.uid, exerciseKey, {
+        exerciseName: currentExercise.name,
+        sessionId:    null,           // no session ID at this point
+        category:     currentExercise.category,
+        log:          entry.log,
+        prescribed:   { sets: currentExercise.sets, reps: currentExercise.reps },
+      }).catch(err => console.error('[FitForge] Firestore sync failed:', err));
+    }
+
     setShowLogModal(false);
     if (updated.length < exercises.length) goToNext();
   };
@@ -484,6 +523,8 @@ export default function WorkoutSession({ exercises, workoutConfig, onComplete, o
       {showLogModal && (
         <LogModal
           exercise={currentExercise}
+          lastLog={lastLog}
+          loadingHistory={loadingHistory}
           onSave={handleSaveLog}
           onCancel={() => setShowLogModal(false)}
         />

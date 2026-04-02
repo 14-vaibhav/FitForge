@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
+import { getRecentSessions } from '../utils/localHistory';
 
 const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
 const MODEL = 'gemini-3.1-flash-lite-preview';
@@ -114,47 +115,64 @@ Rules:
 }
 
 /**
- * Evaluate the completed workout session.
+ * Evaluate the completed workout session with streaming.
+ * onChunk(text) is called progressively as text streams in.
+ * Returns the full evaluation text once complete.
  */
-export async function evaluateWorkout({ workoutConfig, completedExercises }) {
-  const exerciseSummary = completedExercises.map((ex, i) => {
+export async function evaluateWorkout({ workoutConfig, completedExercises }, onChunk) {
+  const done    = completedExercises.filter(e => !e.log?.skipped);
+  const skipped = completedExercises.filter(e =>  e.log?.skipped);
+
+  const exerciseSummary = done.map((ex, i) => {
     const log = ex.log;
-    if (log?.skipped) {
-      return `${i + 1}. ${ex.name} — SKIPPED`;
+    return `${i + 1}. ${ex.name}: ${log?.setsCompleted || '?'}×${log?.repsPerSet || '?'} reps${log?.weight ? ` @ ${log.weight}` : ''}${log?.notes ? ` (${log.notes})` : ''}`;
+  }).join('\n');
+
+  // Inject historical context
+  const past = getRecentSessions(2);
+  let historyContext = '';
+  if (past.length > 0) {
+    historyContext = `\nPast Workout Context (for comparison):\n` + past.map((s, i) => 
+      `- Session ${i+1}: ${s.config.bodyParts.join(', ')} (${s.exercises.filter(e=>!e.log?.skipped).length} exercises completed)`
+    ).join('\n');
+  }
+
+  const prompt = `You are a fitness coach. Give a sharp, motivating evaluation of this ${workoutConfig.duration}-min ${workoutConfig.location} workout targeting ${workoutConfig.bodyParts.join(', ')}.
+
+Completed (${done.length}): 
+${exerciseSummary || 'None'}
+Skipped (${skipped.length}): ${skipped.map(e => e.name).join(', ') || 'None'}
+${historyContext}
+
+Write 3 short sections with emojis: 1) Score/10 with one sentence why. 2) What they crushed. 3) One specific tip for next time. Max 150 words. Be direct and punchy.`;
+
+  // Use streaming so text appears word-by-word
+  let fullText = '';
+  try {
+    const stream = await ai.models.generateContentStream({
+      model: MODEL,
+      contents: prompt,
+    });
+
+    for await (const chunk of stream) {
+      // The SDK may expose text via .text or via candidates
+      const piece = typeof chunk.text === 'string'
+        ? chunk.text
+        : chunk.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      if (piece) {
+        fullText += piece;
+        if (onChunk) onChunk(fullText);
+      }
     }
-    return `${i + 1}. ${ex.name} (${ex.targetMuscle})
-   - Recommended: ${ex.sets} × ${ex.reps}, Rest: ${ex.rest}
-   - Actual: ${log?.setsCompleted || '?'} sets × ${log?.repsPerSet || '?'} reps${log?.weight ? `, Weight: ${log.weight}` : ''}
-   - Notes: ${log?.notes || 'None'}`;
-  }).join('\n\n');
+  } catch (streamErr) {
+    // Streaming failed — fall back to a single non-streaming call
+    console.warn('Streaming failed, falling back to standard call:', streamErr.message);
+    const response = await ai.models.generateContent({ model: MODEL, contents: prompt });
+    fullText = response.text?.trim() || '';
+    if (onChunk) onChunk(fullText);
+  }
 
-  const prompt = `You are an expert fitness coach. Analyze this completed workout and provide a detailed, encouraging evaluation.
-
-Workout Config:
-- Body parts trained: ${workoutConfig.bodyParts.join(', ')}
-- Duration: ${workoutConfig.duration} minutes
-- Location: ${workoutConfig.location}
-- Date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-
-Exercises Performed:
-${exerciseSummary}
-
-Provide a comprehensive evaluation covering:
-1. 🏆 Overall Performance Score (X/10) and what it means
-2. 💪 Volume & Intensity Analysis — were the sets/reps/weight appropriate?
-3. ✅ What you did well
-4. 📈 Areas for improvement
-5. 🔥 Specific recommendations for the next session
-6. ⚡ Recovery tips for the next 24-48 hours
-
-Be specific, motivating, and actionable. Use emojis naturally. Keep it under 400 words.`;
-
-  const response = await ai.models.generateContent({
-    model: MODEL,
-    contents: prompt,
-  });
-
-  return response.text.trim();
+  return fullText.trim() || 'Great workout! Keep it up and stay consistent.';
 }
 
 /**

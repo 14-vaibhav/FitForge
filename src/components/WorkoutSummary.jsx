@@ -155,9 +155,23 @@ export default function WorkoutSummary({ completedExercises, workoutConfig, eval
 
         {/* ── AI Evaluation ── */}
         <div className="glass-card-elevated p-6">
-          <div className="section-label mb-4">AI Evaluation</div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="section-label">AI Evaluation</div>
+            {isEvaluating && evaluation && (
+              <div className="flex items-center gap-1.5">
+                <div
+                  className="w-1.5 h-1.5 rounded-full animate-pulse"
+                  style={{ background: '#4ade80' }}
+                />
+                <span className="text-xs" style={{ fontFamily: 'Space Mono, monospace', color: '#555' }}>
+                  STREAMING
+                </span>
+              </div>
+            )}
+          </div>
 
-          {isEvaluating ? (
+          {/* Spinner only shown when stream hasn't started yet */}
+          {isEvaluating && !evaluation ? (
             <div className="flex flex-col items-center justify-center py-10 gap-3">
               <div className="spinner animate-pulse-glow" />
               <p
@@ -181,13 +195,6 @@ export default function WorkoutSummary({ completedExercises, workoutConfig, eval
         >
           → Start New Workout
         </button>
-
-        <p
-          className="text-center text-xs pb-4"
-          style={{ fontFamily: 'Space Mono, monospace', color: '#444' }}
-        >
-          DATA SAVED LOCALLY IN YOUR BROWSER
-        </p>
       </div>
     </div>
   );

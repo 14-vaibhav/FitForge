@@ -3,6 +3,10 @@ import WorkoutSetup from './components/WorkoutSetup';
 import WorkoutSession from './components/WorkoutSession';
 import WorkoutSummary from './components/WorkoutSummary';
 import { generateWorkout, replaceExercise, evaluateWorkout } from './services/gemini';
+import AuthScreen from './components/AuthScreen';
+import { useAuth } from './context/AuthContext';
+import { signOut } from './firebase/auth';
+import { saveWorkoutSession } from './services/workoutService';
 
 // Screens
 const SCREEN = {
@@ -26,6 +30,7 @@ function saveSession(session) {
 }
 
 export default function App() {
+  const { user, loading: authLoading } = useAuth();
   const [screen, setScreen] = useState(SCREEN.SETUP);
   const [workoutConfig, setWorkoutConfig] = useState(null);
   const [exercises, setExercises] = useState([]);
@@ -87,26 +92,39 @@ export default function App() {
     setIsEvaluating(true);
 
     try {
-      const result = await evaluateWorkout({
-        workoutConfig,
-        completedExercises: completed,
-      });
+      // Streaming: setEvaluation is called on every chunk so text appears live
+      const result = await evaluateWorkout(
+        { workoutConfig, completedExercises: completed },
+        (partialText) => setEvaluation(partialText)
+      );
+
+      // Mark evaluation done
       setEvaluation(result);
 
-      // Save to localStorage
+      // Save to localStorage first (always works)
       saveSession({
         date: new Date().toISOString(),
         config: workoutConfig,
         exercises: completed,
         evaluation: result,
       });
+
+      // Also save to Firestore (cloud backup) — await so errors surface clearly
+      if (user) {
+        try {
+          await saveWorkoutSession(user.uid, workoutConfig, completed, result);
+          console.log('[FitForge] Session saved to Firestore ✓');
+        } catch (dbErr) {
+          console.error('[FitForge] Firestore session save failed:', dbErr.message);
+        }
+      }
     } catch (err) {
       console.error('Evaluation error:', err);
       setEvaluation('Unable to generate evaluation at this time. Great job completing your workout!');
     } finally {
       setIsEvaluating(false);
     }
-  }, [workoutConfig]);
+  }, [workoutConfig, user]);
 
   const handleStartNew = useCallback(() => {
     setScreen(SCREEN.SETUP);
@@ -117,8 +135,26 @@ export default function App() {
     setError(null);
   }, []);
 
+  if (authLoading) {
+    return (
+      <div className="bg-animated min-h-screen flex items-center justify-center p-4">
+        <div className="spinner animate-pulse-glow" style={{ width: 40, height: 40 }} />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthScreen />;
+  }
+
   return (
     <>
+      <button 
+        onClick={signOut}
+        className="fixed top-4 right-4 z-40 text-xs px-3 py-1.5 rounded-full bg-red-900/40 text-red-100 hover:bg-red-800/60 transition-colors border border-red-800"
+      >
+        Sign Out
+      </button>
       {/* Global error toast */}
       {error && (
         <div
