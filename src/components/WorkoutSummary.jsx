@@ -1,4 +1,9 @@
-export default function WorkoutSummary({ completedExercises, workoutConfig, evaluation, isEvaluating, onStartNew }) {
+import { useAuth } from '../context/AuthContext';
+import { calculatePostWorkoutProtein } from '../utils/healthMath';
+
+export default function WorkoutSummary({ completedExercises, workoutConfig, evaluation, isEvaluating, onStartNew, onViewDiet }) {
+  const { userProfile } = useAuth();
+  const postWorkoutProtein = userProfile ? calculatePostWorkoutProtein(userProfile.weightKg) : 25;
   const completedCount = completedExercises.filter(e => !e.log?.skipped).length;
   const skippedCount   = completedExercises.filter(e =>  e.log?.skipped).length;
   const totalExercises = completedExercises.length;
@@ -187,6 +192,43 @@ export default function WorkoutSummary({ completedExercises, workoutConfig, eval
             <p className="text-sm" style={{ color: '#555' }}>Evaluation not available.</p>
           )}
         </div>
+
+        {/* ── Post-Workout Fuel ── */}
+        {userProfile ? (
+          <div className="glass-card p-6" style={{ borderColor: '#4285F4', background: 'rgba(66, 133, 244, 0.05)' }}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="section-label" style={{ color: '#4285F4' }}>Post-Workout Fuel</div>
+            </div>
+            <p className="text-sm text-white/80 mb-3">
+              Based on your {userProfile.weightKg}kg bodyweight setup and '{userProfile.goal.replace('_', ' ')}' goal, make sure to grab a meal or shake within the next 2 hours specifically hitting this target to maximize recovery:
+            </p>
+            <div className="bg-black/40 p-4 rounded-xl border border-[#4285F4]/30 text-center shadow-[0_0_15px_rgba(66,133,244,0.15)] relative overflow-hidden mb-4">
+              <div className="text-xs font-mono text-[#4285F4] font-bold mb-1">TARGET RECOVERY PROTEIN</div>
+              <div className="font-black text-xl text-white">{postWorkoutProtein}g</div>
+            </div>
+            <button
+              onClick={onViewDiet}
+              className="w-full py-2.5 rounded-lg text-sm font-bold bg-[#4285F4]/20 text-[#4285F4] hover:bg-[#4285F4]/30 border border-[#4285F4]/50 transition"
+            >
+              🍎 View Full Diet Plan
+            </button>
+          </div>
+        ) : (
+          <div className="glass-card p-6 border-dashed border-[#FBBC05]/50 bg-[#FBBC05]/5">
+            <div className="flex items-center justify-between mb-2">
+              <div className="section-label" style={{ color: '#FBBC05' }}>Unlock Diet Recommendations</div>
+            </div>
+            <p className="text-sm text-white/80 mb-4">
+              Want to know exactly how much protein you need post-workout? Enter your basic information to get AI-generated daily meal plans entirely tailored to your body.
+            </p>
+            <button
+              onClick={onViewDiet}
+              className="w-full py-3 rounded-lg text-sm font-bold bg-[#FBBC05]/20 text-[#FBBC05] hover:bg-[#FBBC05]/30 border border-[#FBBC05]/50 transition"
+            >
+              Setup Health Profile
+            </button>
+          </div>
+        )}
 
         {/* ── CTA ── */}
         <button

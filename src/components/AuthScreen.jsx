@@ -28,7 +28,15 @@ export default function AuthScreen() {
       }
     } catch (err) {
       console.error(err);
-      setError(err.message || 'Authentication failed');
+      let errorMessage = err.message || 'Authentication failed';
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        errorMessage = 'Invalid email or password. Please try again.';
+      } else if (err.code === 'auth/email-already-in-use') {
+        errorMessage = 'This email is already registered. Please sign in.';
+      } else if (err.code === 'auth/weak-password') {
+        errorMessage = 'Password should be at least 6 characters.';
+      }
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -103,6 +111,7 @@ export default function AuthScreen() {
               onChange={(e) => setEmail(e.target.value)}
               className="input-field"
               placeholder="you@email.com"
+              autoComplete="username"
             />
           </div>
           <div>
@@ -113,6 +122,7 @@ export default function AuthScreen() {
               onChange={(e) => setPassword(e.target.value)}
               className="input-field"
               placeholder="••••••••"
+              autoComplete={isLogin ? "current-password" : "new-password"}
             />
           </div>
           <button

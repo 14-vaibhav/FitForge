@@ -175,9 +175,69 @@ Write 3 short sections with emojis: 1) Score/10 with one sentence why. 2) What t
   return fullText.trim() || 'Great workout! Keep it up and stay consistent.';
 }
 
-/**
- * Build a YouTube search URL from a search query
- */
 export function buildYoutubeUrl(searchQuery) {
   return `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`;
+}
+
+/**
+ * Generates a basic structured diet recommendation from Gemini.
+ */
+export async function generateDietPlan({ userProfile, bmi, proteinGoal }) {
+  const prompt = `You are an expert sports nutritionist. Create a practical 1-day meal plan for the user.
+  
+User Metrics:
+- Weight: ${userProfile.weightKg}kg
+- Height: ${userProfile.heightCm}cm
+- Goal: ${userProfile.goal.replace('_', ' ')}
+- Diet Preference: ${userProfile.dietaryPreference}
+- BMI: ${bmi}
+- Daily Protein Target: ${proteinGoal}g
+
+Return a JSON object exactly like this schema:
+{
+  "summary": "1-2 sentence explanation of the strategy",
+  "meals": [
+    {
+      "name": "Breakfast",
+      "food": "e.g., 3 Whole Eggs & Oatmeal",
+      "protein": "25g"
+    },
+    {
+      "name": "Lunch",
+      "food": "e.g., Chicken Breast & Rice",
+      "protein": "45g"
+    },
+    {
+      "name": "Dinner",
+      "food": "e.g., Salmon & Sweet Potato",
+      "protein": "35g"
+    },
+    {
+      "name": "Snack",
+      "food": "e.g., Greek Yogurt & Almonds",
+      "protein": "15g"
+    }
+  ]
+}
+
+Rules:
+- The total protein of the meals must roughly add up to the ${proteinGoal}g target.
+- Respect the ${userProfile.dietaryPreference} diet natively!
+- Return ONLY the raw JSON object, no markdown like \`\`\`json.`;
+
+  const response = await ai.models.generateContent({
+    model: MODEL,
+    contents: prompt,
+  });
+
+  const text = response.text.trim();
+  const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error('Failed to parse diet plan from Gemini response.');
+  }
 }

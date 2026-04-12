@@ -2,10 +2,10 @@ import { useState, useCallback } from 'react';
 import WorkoutSetup from './components/WorkoutSetup';
 import WorkoutSession from './components/WorkoutSession';
 import WorkoutSummary from './components/WorkoutSummary';
+import DietDashboard from './components/DietDashboard';
 import { generateWorkout, replaceExercise, evaluateWorkout } from './services/gemini';
 import AuthScreen from './components/AuthScreen';
 import { useAuth } from './context/AuthContext';
-import { signOut } from './firebase/auth';
 import { saveWorkoutSession } from './services/workoutService';
 
 // Screens
@@ -13,6 +13,7 @@ const SCREEN = {
   SETUP: 'setup',
   SESSION: 'session',
   SUMMARY: 'summary',
+  DIET: 'diet',
 };
 
 // LocalStorage helpers
@@ -30,7 +31,7 @@ function saveSession(session) {
 }
 
 export default function App() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth();
   const [screen, setScreen] = useState(SCREEN.SETUP);
   const [workoutConfig, setWorkoutConfig] = useState(null);
   const [exercises, setExercises] = useState([]);
@@ -149,12 +150,26 @@ export default function App() {
 
   return (
     <>
-      <button 
-        onClick={signOut}
-        className="fixed top-4 right-4 z-40 text-xs px-3 py-1.5 rounded-full bg-red-900/40 text-red-100 hover:bg-red-800/60 transition-colors border border-red-800"
-      >
-        Sign Out
-      </button>
+      <div className="fixed top-4 right-4 z-40 flex items-center gap-2">
+        {(screen === SCREEN.SETUP || screen === SCREEN.DIET) && (
+          <button 
+            onClick={() => setScreen(screen === SCREEN.DIET ? SCREEN.SETUP : SCREEN.DIET)}
+            className="text-xs px-3 py-1.5 rounded-full bg-[#4285F4]/20 text-[#4285F4] hover:bg-[#4285F4]/40 transition-colors border border-[#4285F4]/50"
+          >
+            {screen === SCREEN.DIET ? '🏋️ Workout Planner' : '🍎 Diet Dashboard'}
+          </button>
+        )}
+        <button 
+          onClick={() => {
+            handleStartNew();
+            logout();
+          }}
+          className="text-xs px-3 py-1.5 rounded-full bg-red-900/40 text-red-100 hover:bg-red-800/60 transition-colors border border-red-800"
+        >
+          Sign Out
+        </button>
+      </div>
+
       {/* Global error toast */}
       {error && (
         <div
@@ -187,6 +202,10 @@ export default function App() {
           isLoading={isGenerating}
         />
       )}
+      
+      {screen === SCREEN.DIET && (
+        <DietDashboard />
+      )}
 
       {screen === SCREEN.SESSION && exercises.length > 0 && (
         <WorkoutSession
@@ -205,6 +224,7 @@ export default function App() {
           evaluation={evaluation}
           isEvaluating={isEvaluating}
           onStartNew={handleStartNew}
+          onViewDiet={() => setScreen(SCREEN.DIET)}
         />
       )}
     </>
