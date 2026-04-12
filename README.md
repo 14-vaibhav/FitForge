@@ -43,19 +43,6 @@ npm run dev
 
 The app will be available at `http://localhost:5173`.
 
-### Environment Variables
-
-Create a `.env` file in the root of the project:
-
-```env
-VITE_GEMINI_API_KEY=your_google_gemini_api_key_here
-VITE_FIREBASE_API_KEY=your_firebase_api_key_here
-VITE_FIREBASE_AUTH_DOMAIN=your_firebase_auth_domain_here
-VITE_FIREBASE_PROJECT_ID=your_firebase_project_id_here
-VITE_FIREBASE_STORAGE_BUCKET=your_firebase_storage_bucket_here
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_firebase_messaging_sender_id_here
-VITE_FIREBASE_APP_ID=your_firebase_app_id_here
-```
 
 ---
 
